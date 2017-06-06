@@ -167,10 +167,7 @@ public:
             }
         }
     }
-	void LogMessageToDisk()
-	{
 
-	}
     void LogMessagePrintf(TGroupID groupid, PCWSTR pszName, PCWSTR pszFormatString, ...)
     {
         va_list argList;
