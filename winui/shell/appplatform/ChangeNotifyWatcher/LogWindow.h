@@ -43,7 +43,11 @@ public:
       _pGroupInfo(pGroupInfo), _cGroupInfo(cGroupInfo), _fDebugOutput(false)
     {
     }
-
+	~CLogWindow()
+	{
+		if (_hLogFile)
+			CloseHandle(_hLogFile);
+	}
     CLogWindow & operator=(const CLogWindow &)
     {
         // User-defined assignment operator is necessary for /W4 /WX since a default
@@ -52,12 +56,48 @@ public:
 
     void InitListView(HWND hwndList)
     {
+		TCHAR szTempFileName[MAX_PATH];
+		TCHAR lpTempPathBuffer[MAX_PATH];
+		UINT uRetVal = 0;
+		DWORD dwRetVal = 0;
+
         _hwndList = hwndList;
         // Enable ListView for Grouping mode.
         SetWindowLongPtr(_hwndList, GWL_STYLE, GetWindowLongPtr(_hwndList, GWL_STYLE) |
                         LVS_REPORT | LVS_NOSORTHEADER | LVS_SHOWSELALWAYS);
         ListView_SetExtendedListViewStyle(_hwndList, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
         ListView_EnableGroupView(_hwndList, TRUE);
+		// Initialize log file
+		// 
+		dwRetVal = GetTempPath(MAX_PATH,          // length of the buffer
+			lpTempPathBuffer); // buffer for path 
+		if (!(dwRetVal > MAX_PATH) && (dwRetVal != 0))
+		{
+				uRetVal = GetTempFileName(lpTempPathBuffer, // directory for tmp files
+					TEXT("Size"),     // temp file name prefix 
+					0,                // create unique name 
+					szTempFileName);  // buffer for name 
+			if (uRetVal == 0)
+			{
+				szTempFileName[0] = NULL;
+			}
+		}
+		else
+			szTempFileName[0] = NULL;
+
+		if (szTempFileName[0] != NULL)
+		{
+			//  Creates the new file to write to for the upper-case version.
+			_hLogFile = CreateFile((LPTSTR)szTempFileName, // file name 
+				GENERIC_WRITE,        // open for write 
+				0,                    // do not share 
+				NULL,                 // default security 
+				CREATE_ALWAYS,        // overwrite existing
+				FILE_ATTRIBUTE_NORMAL,// normal file 
+				NULL);                // no template
+		}
+		else
+			_hLogFile = NULL;
 
         // Setup up common values.
         LVCOLUMN lvc = {};
@@ -167,10 +207,63 @@ public:
             }
         }
     }
-	void LogMessageToDisk()
+	void LogMessageToDisk(PCWSTR pszTitle, PCWSTR pszSourcePath, PCWSTR pszDestPath)
 	{
+		PWSTR szOutString = NULL;
+		UINT size = 0;
+		HANDLE hSrc = NULL;
+		DWORD srcSize = 0;
+		HANDLE hDst = NULL;
+		DWORD dstSize = 0;
+		BY_HANDLE_FILE_INFORMATION FileInformation;
 
+		if (pszTitle != NULL)
+			size = wcslen(pszTitle);
+		if (pszSourcePath != NULL)
+			size += wcslen(pszSourcePath);
+		if (pszDestPath)
+			size += wcslen(pszDestPath);
+		szOutString = new WCHAR[size+50]; // include \t\t \r\n\0x00 + 2 longlongs and two more tabstops
+
+		// Attempt to open the source and dest file, if successful, get the filesize
+		hSrc = CreateFile(pszSourcePath,
+			FILE_READ_ATTRIBUTES,
+			FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+			NULL,
+			OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL);
+		hDst= CreateFile(pszDestPath,
+			FILE_READ_ATTRIBUTES,
+			FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+			NULL,
+			OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL);
+		if (hSrc)
+		{
+			if (GetFileInformationByHandle(hSrc, &FileInformation))
+				srcSize = FileInformation.nFileSizeLow;
+		}
+		if (hDst)
+		{
+			if (GetFileInformationByHandle(hDst, &FileInformation))
+				dstSize = FileInformation.nFileSizeLow;
+		}
+		_swprintf(szOutString, L"%s\t%s\t%d\t%s%d\r\n", pszTitle, pszSourcePath, pszDestPath);
+
+		if (_hLogFile)
+		{
+			// The return result does not matter
+			WriteFile(hTempFile,
+				szOutString,
+				(size-1)*sizeof(WCHAR), // Removing the null char, and convert to byte count
+				&size,
+				NULL);
+		}
+		delete[] szOutString;
 	}
+
     void LogMessagePrintf(TGroupID groupid, PCWSTR pszName, PCWSTR pszFormatString, ...)
     {
         va_list argList;
@@ -289,4 +382,5 @@ private:
     const TGroupIDMap *_pGroupInfo;
     const UINT _cGroupInfo;
     bool _fDebugOutput;
+	HANDLE _hLogFile;
 };

@@ -424,16 +424,21 @@ public:
     void OnChangeNotify(long lEvent, IShellItem2 *psi1, IShellItem2 *psi2)
     {
         PWSTR pszLeft = NULL, pszRight = NULL;
-
+		
+		int leftSize = 0; int rightSize = 0;
         if (psi1)
         {
             GetIDListName(psi1, &pszLeft);
+			psi1->GetDisplayName(SIGDN_FILESYSPATH, &pszLeft);
+			psi1->GetInt32(PKEY_Size, &leftSize);
         }
 
         if (psi2)
         {
             GetIDListName(psi2, &pszRight);
-        }
+			psi1->GetDisplayName(SIGDN_FILESYSPATH, &pszRight);
+			psi1->GetInt32(PKEY_Size, &rightSize);
+		}
 
         if (lEvent == SHCNE_RENAMEITEM || lEvent == SHCNE_RENAMEFOLDER)
         {
