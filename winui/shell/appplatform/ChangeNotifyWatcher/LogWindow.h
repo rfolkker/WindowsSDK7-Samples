@@ -207,14 +207,11 @@ public:
             }
         }
     }
-	void LogMessageToDisk(PCWSTR pszTitle, PCWSTR pszSourcePath, PCWSTR pszDestPath)
+	void LogMessageToDisk(PCWSTR pszTitle, PCWSTR pszSourcePath, int srcSize, PCWSTR pszDestPath, int dstSize)
 	{
 		PWSTR szOutString = NULL;
 		UINT size = 0;
-		HANDLE hSrc = NULL;
-		DWORD srcSize = 0;
-		HANDLE hDst = NULL;
-		DWORD dstSize = 0;
+		DWORD outSize = 0;
 		BY_HANDLE_FILE_INFORMATION FileInformation;
 
 		if (pszTitle != NULL)
@@ -225,40 +222,15 @@ public:
 			size += wcslen(pszDestPath);
 		szOutString = new WCHAR[size+50]; // include \t\t \r\n\0x00 + 2 longlongs and two more tabstops
 
-		// Attempt to open the source and dest file, if successful, get the filesize
-		hSrc = CreateFile(pszSourcePath,
-			FILE_READ_ATTRIBUTES,
-			FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-			NULL,
-			OPEN_EXISTING,
-			FILE_ATTRIBUTE_NORMAL,
-			NULL);
-		hDst= CreateFile(pszDestPath,
-			FILE_READ_ATTRIBUTES,
-			FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-			NULL,
-			OPEN_EXISTING,
-			FILE_ATTRIBUTE_NORMAL,
-			NULL);
-		if (hSrc)
-		{
-			if (GetFileInformationByHandle(hSrc, &FileInformation))
-				srcSize = FileInformation.nFileSizeLow;
-		}
-		if (hDst)
-		{
-			if (GetFileInformationByHandle(hDst, &FileInformation))
-				dstSize = FileInformation.nFileSizeLow;
-		}
-		_swprintf(szOutString, L"%s\t%s\t%d\t%s%d\r\n", pszTitle, pszSourcePath, pszDestPath);
+		wsprintf(szOutString, L"%s\t%s\t%d\t%s%d\r\n", pszTitle, pszSourcePath, srcSize, pszDestPath, dstSize);
 
 		if (_hLogFile)
 		{
 			// The return result does not matter
-			WriteFile(hTempFile,
+			WriteFile(_hLogFile,
 				szOutString,
 				(size-1)*sizeof(WCHAR), // Removing the null char, and convert to byte count
-				&size,
+				&outSize,
 				NULL);
 		}
 		delete[] szOutString;

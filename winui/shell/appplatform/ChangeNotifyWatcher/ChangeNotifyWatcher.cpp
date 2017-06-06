@@ -439,7 +439,7 @@ public:
 			psi1->GetDisplayName(SIGDN_FILESYSPATH, &pszRight);
 			psi1->GetInt32(PKEY_Size, &rightSize);
 		}
-
+		_logWindow.LogMessageToDisk(EventName(lEvent), pszLeft, leftSize, pszRight, rightSize);
         if (lEvent == SHCNE_RENAMEITEM || lEvent == SHCNE_RENAMEFOLDER)
         {
             _logWindow.LogMessagePrintf(GROUPID_NAMES, EventName(lEvent),
